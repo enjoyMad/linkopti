@@ -5,11 +5,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 
-// Définir le type pour les campagnes passées
+// Définir le type pour les campagnes passées et les projets
 type Campaign = {
   utm_source: string;
   utm_medium: string;
   utm_campaign: string;
+};
+
+type Project = {
+  id: string;
+  name: string;
 };
 
 export default function GenerateUTM() {
@@ -23,12 +28,18 @@ export default function GenerateUTM() {
   });
 
   const [generatedLink, setGeneratedLink] = useState('');
-  const [pastCampaigns, setPastCampaigns] = useState<Campaign[]>([]); // Type des campagnes passées
-
+  const [pastCampaigns, setPastCampaigns] = useState<Campaign[]>([]); // Campagnes passées
+  const [projects, setProjects] = useState<Project[]>([]); // Projets disponibles
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null); // Projet sélectionné
 
   // Fonction pour gérer les changements dans les champs du formulaire
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    if (name === 'selectedProjectId') {
+      setSelectedProjectId(value); // Mettre à jour le projet sélectionné
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   // Fonction pour générer l'URL UTM
@@ -48,29 +59,32 @@ export default function GenerateUTM() {
 
   // Fonction pour sauvegarder le lien UTM dans Supabase
   const saveUTM = async () => {
-    // TODO: Remplacer 'project_id_example' par l'ID du projet actuel
-    const projectId = 'project_id_example'; // À remplacer dynamiquement selon l'utilisateur/projet
+    if (!selectedProjectId) {
+      alert('Veuillez sélectionner un projet avant de sauvegarder.');
+      return;
+    }
 
-    const { data, error } = await supabase.from('utm_links').insert([
-      {
-        project_id: projectId,
-        url: form.url,
-        utm_source: form.utm_source,
-        utm_medium: form.utm_medium,
-        utm_campaign: form.utm_campaign,
-        utm_term: form.utm_term,
-        utm_content: form.utm_content,
-        short_url: '', // À remplir après l'intégration du raccourcisseur de liens
-      },
-    ]);
+    const linkData = {
+      project_id: selectedProjectId,
+      url: form.url,
+      utm_source: form.utm_source,
+      utm_medium: form.utm_medium,
+      utm_campaign: form.utm_campaign,
+      utm_term: form.utm_term,
+      utm_content: form.utm_content,
+      short_url: '', // À adapter selon tes besoins
+    };
+
+    console.log('Données envoyées à Supabase :', linkData);
+
+    const { data, error } = await supabase.from('utm_links').insert([linkData]);
 
     if (error) {
       console.error('Erreur lors de la sauvegarde du lien UTM :', error);
-      alert('Erreur lors de la sauvegarde du lien. Veuillez réessayer.');
+      alert('Erreur lors de la sauvegarde du lien. Vérifiez les permissions ou les données.');
     } else {
-      console.log('Lien UTM sauvegardé :', data);
+      console.log('Lien UTM sauvegardé avec succès :', data);
       alert('Lien UTM sauvegardé avec succès !');
-      // Réinitialiser le formulaire si nécessaire
     }
   };
 
@@ -86,17 +100,54 @@ export default function GenerateUTM() {
       if (error) {
         console.error('Erreur lors de la récupération des campagnes passées :', error);
       } else {
-        setPastCampaigns(data);
+        setPastCampaigns(data || []);
       }
     };
 
     fetchPastCampaigns();
   }, []);
 
+  // Fonction pour récupérer les projets
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const { data, error } = await supabase.from('projects').select('id, name');
+
+      if (error) {
+        console.error('Erreur lors de la récupération des projets :', error);
+      } else {
+        setProjects(data || []);
+        // Sélectionner automatiquement le premier projet si disponible
+        if (data && data.length > 0) {
+          setSelectedProjectId(data[0].id);
+        }
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
   return (
     <div className="max-w-lg mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Générateur de liens UTM</h1>
       <div className="space-y-4">
+        {/* Sélection du projet */}
+        <label htmlFor="selectedProjectId" className="block font-semibold">
+          Sélectionner un projet :
+        </label>
+        <select
+          name="selectedProjectId"
+          value={selectedProjectId || ''}
+          onChange={handleChange}
+          className="w-full p-2 border border-gray-300 rounded"
+        >
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Champs du formulaire */}
         <input
           type="text"
           name="url"
