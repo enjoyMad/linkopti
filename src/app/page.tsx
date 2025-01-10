@@ -2,30 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
-
-// Définir un type correspondant à la table 'users' dans Supabase
-type User = {
-  id: string;
-  email: string;
-  name?: string; // Ajoute d'autres colonnes selon ta table 'users'
-  created_at?: string;
-};
+import { User } from '../utils/types'; // Importer le type User
 
 export default function Home() {
-  const [users, setUsers] = useState<User[] | null>(null); // Utilisation du type 'User[] | null'
-  const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const { data, error } = await supabase
-        .from<User>('users') // Utilisation d'un seul type ici
-        .select('*');
+      try {
+        const { data, error } = await supabase
+          .from('users') // Ne pas spécifier les types ici
+          .select('*');
 
-      if (error) {
-        console.error('Erreur lors de la récupération des utilisateurs :', error);
-        setError('Impossible de récupérer les utilisateurs. Veuillez réessayer plus tard.');
-      } else {
-        setUsers(data || []); // Si data est null, on initialise avec un tableau vide
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        setUsers(data as User[] || []);
+      } catch (error: any) {
+        console.error('Erreur lors de la récupération des utilisateurs :', error.message);
+        setErrorMessage('Impossible de récupérer les utilisateurs. Veuillez réessayer plus tard.');
       }
     };
 
@@ -35,11 +32,11 @@ export default function Home() {
   return (
     <main>
       <h1>Bienvenue sur LinkOpti</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
       {users ? (
         <pre>{JSON.stringify(users, null, 2)}</pre>
       ) : (
-        !error && <p>Chargement des utilisateurs...</p>
+        !errorMessage && <p>Chargement des utilisateurs...</p>
       )}
     </main>
   );
