@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { User } from '../utils/types'; // Importer le type User
+import { User } from '../utils/types'; // Assure-toi que ce chemin est correct
 
 export default function Home() {
   const [users, setUsers] = useState<User[] | null>(null);
@@ -12,17 +12,22 @@ export default function Home() {
     const fetchUsers = async () => {
       try {
         const { data, error } = await supabase
-          .from('users') // Ne pas spécifier les types ici
+          .from<User>('users') // Assure-toi que 'User' est correctement défini
           .select('*');
 
         if (error) {
           throw new Error(error.message);
         }
 
-        setUsers(data as User[] || []);
-      } catch (error: any) {
-        console.error('Erreur lors de la récupération des utilisateurs :', error.message);
-        setErrorMessage('Impossible de récupérer les utilisateurs. Veuillez réessayer plus tard.');
+        setUsers(data || []);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error('Erreur lors de la récupération des utilisateurs :', error.message);
+          setErrorMessage('Impossible de récupérer les utilisateurs. Veuillez réessayer plus tard.');
+        } else {
+          console.error('Erreur inconnue lors de la récupération des utilisateurs :', error);
+          setErrorMessage('Une erreur inattendue est survenue. Veuillez réessayer plus tard.');
+        }
       }
     };
 
