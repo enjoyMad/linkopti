@@ -12,7 +12,7 @@ export default function Home() {
     const fetchUsers = async () => {
       try {
         const { data, error } = await supabase
-          .from<User>('users') // Assure-toi que 'User' est correctement défini
+          .from('users') // Ne pas spécifier les types ici
           .select('*');
 
         if (error) {
